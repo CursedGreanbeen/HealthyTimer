@@ -1,16 +1,22 @@
 import time
 from threading import Thread
+import threading
 
 
 class Scheduler:
+    def __init__(self, notify_callback):
+        self._notify_callback = notify_callback
+        self._stop_event = threading.Event()
+
     def add_task(self, name, interval_time):
-        thread = Thread(target=self._run, args=(name, interval_time))
+        thread = Thread(target=self._run, args=(name, interval_time), daemon = True)
         thread.start()
 
-    def _run(self, name, interval_time):
-        while True:
-            time.sleep(interval_time * 60)
-            self._notify(name)
+    def stop(self):
+        self._stop_event.set()
 
-    def _notify(self, name):
-        self.notify_callback(name)
+    def _run(self, name, interval_time):
+        while not self._stop_event.is_set():
+             time.sleep(interval_time * 60)
+             if not self._stop_event.is_set():
+                self._notify_callback(name)

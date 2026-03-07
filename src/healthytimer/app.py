@@ -3,6 +3,7 @@ Timer for your tasks
 """
 
 import toga
+import asyncio
 from healthytimer.scheduler import Scheduler
 from toga.style.pack import COLUMN, ROW
 
@@ -36,7 +37,9 @@ class Healthytimer(toga.App):
         )
 
     def show_notification(self, name):
-        self.app.main_window.dialog('Напоминание', name)
+        async def _show():
+            await self.main_window.dialog(toga.InfoDialog('Напоминание', name))
+        asyncio.run_coroutine_threadsafe(_show(), self.loop)
 
 
 def main():
