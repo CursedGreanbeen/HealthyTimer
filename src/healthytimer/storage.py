@@ -1,5 +1,6 @@
 import sqlite3
 from healthytimer.models import Task
+from datetime import datetime
 
 
 class Storage:
@@ -14,15 +15,22 @@ class Storage:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 interval_time REAL,
-                importance INTEGER
+                importance INTEGER,
+                unit INTEGER,
+                next_due TEXT
             ) 
         """)
         self.conn.commit()
 
     def insert_task(self, task: Task) -> Task:
         cursor = self.conn.execute(
-            "INSERT INTO tasks (name, interval_time, importance) VALUES (?, ?, ?)",
-            (task.name, task.interval_time, task.importance)
+            "INSERT INTO tasks (name, interval_time, importance, next_due) VALUES (?, ?, ?, ?)",
+            (
+                task.name,
+                task.interval_time,
+                task.importance,
+                task.next_due.isoformat(),
+            )
         )
         self.conn.commit()
         task.id = cursor.lastrowid
@@ -35,7 +43,8 @@ class Storage:
                 id=row["id"],
                 name=row["name"],
                 interval_time=row["interval_time"],
-                importance=row["importance"]
+                importance=row["importance"],
+                next_due=datetime.fromisoformat(row["next_due"])
             )
             for row in rows
         ]

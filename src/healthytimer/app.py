@@ -7,6 +7,7 @@ import asyncio
 from healthytimer.scheduler import Scheduler
 from healthytimer.storage import Storage
 from healthytimer.models import Task
+from datetime import datetime, timedelta
 from toga.style.pack import COLUMN, ROW
 
 
@@ -21,8 +22,9 @@ class Healthytimer(toga.App):
         self.main_window.show()
 
         self.task_input = toga.TextInput(placeholder='О чём напомнить?')
-        self.time_input = toga.TextInput(placeholder='Время в минутах')
-        self.importance_input = toga.Selection(items=[1, 2, 3])
+        self.time_input = toga.TextInput(placeholder='Время')
+        self.unit_input = toga.Selection(items=['minutes', 'hours', 'days', 'weeks'])
+        self.importance_input = toga.Selection(items=['low', 'medium', 'high'])
         self.add_remind = toga.Button(
             'Добавить напоминание',
             on_press=self.add_reminder
@@ -30,6 +32,7 @@ class Healthytimer(toga.App):
 
         main_box.add(self.task_input)
         main_box.add(self.time_input)
+        main_box.add(self.unit_input)
         main_box.add(self.importance_input)
         main_box.add(self.add_remind)
 
@@ -39,7 +42,9 @@ class Healthytimer(toga.App):
         task = Task(
             name=self.task_input.value,
             interval_time=float(self.time_input.value),
-            importance=int(self.importance_input.value)
+            unit=self.unit_input.value,
+            importance=self.importance_input.value,
+            next_due=datetime.now() + timedelta(seconds=float(self.time_input.value))
         )
         task = self.storage.insert_task(task)
         self.scheduler.add_task(task)
