@@ -28,9 +28,19 @@ class Importance(Enum):
 @dataclass
 class Task:
     name: str
-    interval_time: float
     importance: Importance
-    unit: TimeUnit
+    is_flexible: bool
     id: int = field(default=None)
     created_at: datetime = field(default_factory=datetime.now)
+
+
+@dataclass
+class Routine(Task):
+    interval_time: float = 0.0
+    unit: TimeUnit = TimeUnit.DAYS
     next_due: datetime = field(default=None)
+
+
+@dataclass
+class SingleTime(Task):
+    due_date: datetime = field(default=None)
