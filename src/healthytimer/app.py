@@ -16,8 +16,10 @@ class Healthytimer(toga.App):
     def startup(self):
         db_path = os.path.join(os.path.dirname(__file__), "tasks.db")
         self.storage = Storage(db_path)
-        self.scheduler = Scheduler(notify_callback=self.show_notification)
-
+        self.scheduler = Scheduler(
+            notify_callback=self.show_notification,
+            storage=self.storage
+        )
         self.start_box = toga.Box()
         self.routine_box = toga.Box()
         self.single_time_box = toga.Box()
@@ -40,12 +42,11 @@ class Healthytimer(toga.App):
         self.start_box.add(self.new_routine)
         self.start_box.add(self.new_single_time)
 
-        self.back_to_main = toga.Button(
-            'Home',
-            on_press=self.startup
-        )
-
         # ROUTINES
+        self.routine_back_to_main = toga.Button(
+            'Home',
+            on_press=self.home
+        )
         self.routine_input = toga.TextInput(placeholder='task text')
         self.routine_interval_time_input = toga.TextInput(placeholder='time interval')
         self.routine_unit_input = toga.Selection(items=['minutes', 'hours', 'days', 'weeks'])
@@ -55,7 +56,7 @@ class Healthytimer(toga.App):
             'Add reminder',
             on_press=self.add_routine
         )
-        self.routine_box.add(self.back_to_main)
+        self.routine_box.add(self.routine_back_to_main)
         self.routine_box.add(self.routine_input)
         self.routine_box.add(self.routine_interval_time_input)
         self.routine_box.add(self.routine_unit_input)
@@ -64,6 +65,10 @@ class Healthytimer(toga.App):
         self.routine_box.add(self.routine_add_remind)
 
         # SINGLE-TIME TASKS
+        self.single_time_back_to_main = toga.Button(
+            'Home',
+            on_press=self.home
+        )
         self.single_time_input = toga.TextInput(placeholder='task text')
         self.single_time_deadline_input = toga.DateInput()
         self.single_time_importance_input = toga.Selection(items=['low', 'medium', 'high'])
@@ -72,7 +77,7 @@ class Healthytimer(toga.App):
             'Add reminder',
             on_press=self.add_single_time
         )
-        self.single_time_box.add(self.back_to_main)
+        self.single_time_box.add(self.single_time_back_to_main)
         self.single_time_box.add(self.single_time_input)
         self.single_time_box.add(self.single_time_deadline_input)
         self.single_time_box.add(self.single_time_importance_input)
@@ -84,6 +89,9 @@ class Healthytimer(toga.App):
 
     def choose_single_time(self, widget):
         self.main_window.content = self.single_time_box
+
+    def home(self, widget):
+        self.main_window.content = self.start_box
 
     def add_routine(self, widget):
         print("button pressed")

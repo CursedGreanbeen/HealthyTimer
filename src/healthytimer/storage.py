@@ -64,6 +64,15 @@ class Storage:
         singletime.id = cursor.lastrowid
         return singletime
 
+    def update_routine(self, routine):
+        cursor = self.conn.execute(f"UPDATE tasks SET due_date = ? WHERE id = ?",
+                                   (routine.due_date, routine.id,))
+        self.conn.commit()
+
+    def delete_task(self, task):
+        cursor = self.conn.execute(f"DELETE from tasks WHERE id = ?", (task.id,))
+        self.conn.commit()
+
     def get_all_tasks(self) -> list[Task]:
         tasks = []
         rows = self.conn.execute("SELECT * FROM tasks").fetchall()
