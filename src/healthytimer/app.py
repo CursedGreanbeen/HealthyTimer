@@ -5,10 +5,10 @@ Timer for your tasks
 import toga
 import asyncio
 import os
+from datetime import time, datetime, timedelta
 from healthytimer.scheduler import Scheduler
 from healthytimer.storage import Storage
 from healthytimer.models import Task, Routine, SingleTime, TimeUnit, Importance
-from datetime import datetime, timedelta
 from toga.style.pack import COLUMN, ROW
 
 
@@ -40,10 +40,7 @@ class Healthytimer(toga.App):
         self.start_box.add(self.new_routine)
         self.start_box.add(self.new_single_time)
 
-    # ROUTINES
-    def choose_routine(self, widget):
-        self.main_window.content = self.routine_box
-
+        # ROUTINES
         self.routine_input = toga.TextInput(placeholder='task text')
         self.routine_interval_time_input = toga.TextInput(placeholder='time interval')
         self.routine_unit_input = toga.Selection(items=['minutes', 'hours', 'days', 'weeks'])
@@ -53,7 +50,6 @@ class Healthytimer(toga.App):
             'Add reminder',
             on_press=self.add_routine
         )
-
         self.routine_box.add(self.routine_input)
         self.routine_box.add(self.routine_interval_time_input)
         self.routine_box.add(self.routine_unit_input)
@@ -61,24 +57,26 @@ class Healthytimer(toga.App):
         self.routine_box.add(self.routine_is_flexible_input)
         self.routine_box.add(self.routine_add_remind)
 
-    # SINGLE-TIME TASKS
-    def choose_single_time(self, widget):
-        self.main_window.content = self.single_time_box
-
+        # SINGLE-TIME TASKS
         self.single_time_input = toga.TextInput(placeholder='task text')
-        self.single_time_deadline_input = toga.TextInput(placeholder='deadline')
+        self.single_time_deadline_input = toga.DateInput()
         self.single_time_importance_input = toga.Selection(items=['low', 'medium', 'high'])
         self.single_time_is_flexible_input = toga.Switch(text="Is it rearrangable?")
         self.single_time_add_remind = toga.Button(
             'Add reminder',
             on_press=self.add_single_time
         )
-
         self.single_time_box.add(self.single_time_input)
         self.single_time_box.add(self.single_time_deadline_input)
         self.single_time_box.add(self.single_time_importance_input)
         self.single_time_box.add(self.single_time_is_flexible_input)
         self.single_time_box.add(self.single_time_add_remind)
+
+    def choose_routine(self, widget):
+        self.main_window.content = self.routine_box
+
+    def choose_single_time(self, widget):
+        self.main_window.content = self.single_time_box
 
     def add_routine(self, widget):
         print("button pressed")
@@ -119,13 +117,11 @@ class Healthytimer(toga.App):
             'high': Importance.HIGH
         }
 
-        deadline = self.single_time_deadline_input.value
-
         single_time = SingleTime(
             name=self.single_time_input.value,
             importance=importance_map[self.single_time_importance_input.value],
             is_flexible=self.single_time_is_flexible_input.value,
-            due_date=datetime.deadline
+            due_date=datetime.combine(self.single_time_deadline_input.value, time(0, 0, 0))
         )
 
         single_time = self.storage.insert_single_time(single_time)
