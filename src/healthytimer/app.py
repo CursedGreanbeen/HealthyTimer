@@ -8,7 +8,7 @@ import os
 from datetime import time, datetime, timedelta
 from healthytimer.scheduler import Scheduler
 from healthytimer.storage import Storage
-from healthytimer.models import Task, Routine, SingleTime, TimeUnit, Importance
+from healthytimer.models import Task, Routine, TimeUnit, Importance
 from toga.style.pack import COLUMN, ROW
 
 
@@ -107,12 +107,12 @@ class Healthytimer(toga.App):
             unit=unit,
             importance=importance_map[self.routine_importance_input.value],
             is_flexible=self.routine_is_flexible_input.value,
-            next_due=datetime.now() + timedelta(
+            due_date=datetime.now() + timedelta(
                 seconds=float(self.routine_interval_time_input.value) * unit.to_seconds()
             )
         )
         routine = self.storage.insert_routine(routine)
-        self.scheduler.add_routine(routine)
+        self.scheduler.add_task(routine)
         # self.rearranger.add_task(routine)
         self.main_window.content = self.start_box
 
@@ -126,7 +126,7 @@ class Healthytimer(toga.App):
             'high': Importance.HIGH
         }
 
-        single_time = SingleTime(
+        single_time = Task(
             name=self.single_time_input.value,
             importance=importance_map[self.single_time_importance_input.value],
             is_flexible=self.single_time_is_flexible_input.value,
@@ -134,7 +134,7 @@ class Healthytimer(toga.App):
         )
 
         single_time = self.storage.insert_single_time(single_time)
-        self.scheduler.add_single_time(single_time)
+        self.scheduler.add_task(single_time)
         # self.rearranger.add_task(single_time)
         self.main_window.content = self.start_box
 

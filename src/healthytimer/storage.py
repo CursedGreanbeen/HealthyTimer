@@ -1,5 +1,5 @@
 import sqlite3
-from healthytimer.models import Task, Routine, SingleTime, TimeUnit, Importance
+from healthytimer.models import Task, Routine, TimeUnit, Importance
 from datetime import datetime
 import os
 
@@ -21,7 +21,6 @@ class Storage:
                 is_flexible BOOL,
                 interval_time REAL,
                 unit INTEGER,
-                next_due TEXT,
                 due_date TEXT
             ) 
         """)
@@ -30,7 +29,7 @@ class Storage:
     def insert_routine(self, routine: Routine) -> Routine:
         cursor = self.conn.execute(
             "INSERT INTO tasks "
-            "(task_type, name, importance, is_flexible, created_at, interval_time, unit, next_due) "
+            "(task_type, name, importance, is_flexible, created_at, interval_time, unit, due_date) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 'routine',
@@ -40,14 +39,14 @@ class Storage:
                 routine.created_at.isoformat(),
                 routine.interval_time,
                 routine.unit.value,
-                routine.next_due.isoformat(),
+                routine.due_date.isoformat(),
             )
         )
         self.conn.commit()
         routine.id = cursor.lastrowid
         return routine
 
-    def insert_single_time(self, singletime: SingleTime) -> SingleTime:
+    def insert_single_time(self, singletime: Task) -> Task:
         cursor = self.conn.execute(
             "INSERT INTO tasks "
             "(task_type, name, importance, is_flexible, created_at, due_date) "
@@ -79,12 +78,12 @@ class Storage:
                         created_at=datetime.fromisoformat(row["created_at"]),
                         interval_time=row["interval_time"],
                         unit=TimeUnit(row["unit"]),
-                        next_due=datetime.fromisoformat(row["next_due"]),
+                        due_date=datetime.fromisoformat(row["due_date"]),
                     )
                 )
             else:
                 tasks.append(
-                    SingleTime(
+                    Task(
                         id=row["id"],
                         name=row["name"],
                         importance=Importance(row["importance"]),
