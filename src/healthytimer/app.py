@@ -40,6 +40,11 @@ class Healthytimer(toga.App):
         self.start_box.add(self.new_routine)
         self.start_box.add(self.new_single_time)
 
+        self.back_to_main = toga.Button(
+            'Home',
+            on_press=self.startup
+        )
+
         # ROUTINES
         self.routine_input = toga.TextInput(placeholder='task text')
         self.routine_interval_time_input = toga.TextInput(placeholder='time interval')
@@ -50,6 +55,7 @@ class Healthytimer(toga.App):
             'Add reminder',
             on_press=self.add_routine
         )
+        self.routine_box.add(self.back_to_main)
         self.routine_box.add(self.routine_input)
         self.routine_box.add(self.routine_interval_time_input)
         self.routine_box.add(self.routine_unit_input)
@@ -66,6 +72,7 @@ class Healthytimer(toga.App):
             'Add reminder',
             on_press=self.add_single_time
         )
+        self.single_time_box.add(self.back_to_main)
         self.single_time_box.add(self.single_time_input)
         self.single_time_box.add(self.single_time_deadline_input)
         self.single_time_box.add(self.single_time_importance_input)
@@ -100,10 +107,12 @@ class Healthytimer(toga.App):
             unit=unit,
             importance=importance_map[self.routine_importance_input.value],
             is_flexible=self.routine_is_flexible_input.value,
-            next_due=datetime.now() + timedelta(seconds=float(self.routine_interval_time_input.value) * unit.to_seconds())
+            next_due=datetime.now() + timedelta(
+                seconds=float(self.routine_interval_time_input.value) * unit.to_seconds()
+            )
         )
         routine = self.storage.insert_routine(routine)
-        self.scheduler.add_task(routine)
+        self.scheduler.add_routine(routine)
         # self.rearranger.add_task(routine)
         self.main_window.content = self.start_box
 
@@ -125,6 +134,7 @@ class Healthytimer(toga.App):
         )
 
         single_time = self.storage.insert_single_time(single_time)
+        self.scheduler.add_single_time(single_time)
         # self.rearranger.add_task(single_time)
         self.main_window.content = self.start_box
 
