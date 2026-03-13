@@ -23,6 +23,7 @@ class Healthytimer(toga.App):
         self.start_box = toga.Box()
         self.routine_box = toga.Box()
         self.single_time_box = toga.Box()
+        self.view_tasks_box = toga.Box()
 
         self.main_window = toga.MainWindow(title=self.formal_name)
         self.main_window.content = self.start_box
@@ -37,10 +38,15 @@ class Healthytimer(toga.App):
             'New single-time task',
             on_press=self.choose_single_time
         )
+        self.view_tasks = toga.Button(
+            'View tasks',
+            on_press=self.choose_view_tasks
+        )
 
         self.start_box.add(self.max_per_day_input)
         self.start_box.add(self.new_routine)
         self.start_box.add(self.new_single_time)
+        self.start_box.add(self.view_tasks)
 
         # ROUTINES
         self.routine_back_to_main = toga.Button(
@@ -84,11 +90,53 @@ class Healthytimer(toga.App):
         self.single_time_box.add(self.single_time_is_flexible_input)
         self.single_time_box.add(self.single_time_add_remind)
 
+        # VIEW TASKS
+
+        data_r, data_t = [], []
+        unit_map = {
+            TimeUnit.MINUTES: r'minute(s)',
+            TimeUnit.HOURS: 'hour(s)',
+            TimeUnit.DAYS: 'day(s)',
+            TimeUnit.WEEKS: 'week(s)'
+        }
+
+        for task in self.storage.get_all_tasks():
+            if isinstance(task, Routine):
+                unit = unit_map[task.unit]
+                routine_data = (task.name, f'Every {task.interval_time} {unit}', task.due_date)
+                data_r.append(routine_data)
+            else:
+                task_data = (task.name, task.due_date)
+                data_t.append(task_data)
+
+        self.tasks_table = toga.Table(
+            headings=['Task', 'Due date'],
+            data=data_t
+        )
+
+        self.routines_table = toga.Table(
+            headings=['Routine', 'Time interval', 'Next due'],
+            data=data_r
+        )
+
+        self.table_back_to_main = toga.Button(
+            'Home',
+            on_press=self.home
+        )
+
+        self.view_tasks_box.add(self.tasks_table)
+        self.view_tasks_box.add(self.routines_table)
+        self.view_tasks_box.add(self.table_back_to_main)
+
+
     def choose_routine(self, widget):
         self.main_window.content = self.routine_box
 
     def choose_single_time(self, widget):
         self.main_window.content = self.single_time_box
+
+    def choose_view_tasks(self, widget):
+        self.main_window.content = self.view_tasks_box
 
     def home(self, widget):
         self.main_window.content = self.start_box

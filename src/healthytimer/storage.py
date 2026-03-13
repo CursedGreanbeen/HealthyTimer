@@ -66,7 +66,7 @@ class Storage:
 
     def update_routine(self, routine):
         cursor = self.conn.execute(f"UPDATE tasks SET due_date = ? WHERE id = ?",
-                                   (routine.due_date, routine.id,))
+                                   (routine.due_date.isoformat(), routine.id,))
         self.conn.commit()
 
     def delete_task(self, task):

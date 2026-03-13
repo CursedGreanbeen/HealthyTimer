@@ -39,3 +39,4 @@ class Task:
 class Routine(Task):
     interval_time: float = 0.0
     unit: TimeUnit = TimeUnit.DAYS
+    # is_running = True
