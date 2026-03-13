@@ -9,7 +9,7 @@ from datetime import time, datetime, timedelta
 from healthytimer.scheduler import Scheduler
 from healthytimer.storage import Storage
 from healthytimer.models import Task, Routine, TimeUnit, Importance
-from toga.style.pack import COLUMN, ROW
+from toga.style.pack import COLUMN, ROW, Pack
 
 
 class Healthytimer(toga.App):
@@ -23,7 +23,6 @@ class Healthytimer(toga.App):
         self.start_box = toga.Box()
         self.routine_box = toga.Box()
         self.single_time_box = toga.Box()
-        self.view_tasks_box = toga.Box()
 
         self.main_window = toga.MainWindow(title=self.formal_name)
         self.main_window.content = self.start_box
@@ -90,44 +89,6 @@ class Healthytimer(toga.App):
         self.single_time_box.add(self.single_time_is_flexible_input)
         self.single_time_box.add(self.single_time_add_remind)
 
-        # VIEW TASKS
-
-        data_r, data_t = [], []
-        unit_map = {
-            TimeUnit.MINUTES: r'minute(s)',
-            TimeUnit.HOURS: 'hour(s)',
-            TimeUnit.DAYS: 'day(s)',
-            TimeUnit.WEEKS: 'week(s)'
-        }
-
-        for task in self.storage.get_all_tasks():
-            if isinstance(task, Routine):
-                unit = unit_map[task.unit]
-                routine_data = (task.name, f'Every {task.interval_time} {unit}', task.due_date)
-                data_r.append(routine_data)
-            else:
-                task_data = (task.name, task.due_date)
-                data_t.append(task_data)
-
-        self.tasks_table = toga.Table(
-            headings=['Task', 'Due date'],
-            data=data_t
-        )
-
-        self.routines_table = toga.Table(
-            headings=['Routine', 'Time interval', 'Next due'],
-            data=data_r
-        )
-
-        self.table_back_to_main = toga.Button(
-            'Home',
-            on_press=self.home
-        )
-
-        self.view_tasks_box.add(self.tasks_table)
-        self.view_tasks_box.add(self.routines_table)
-        self.view_tasks_box.add(self.table_back_to_main)
-
 
     def choose_routine(self, widget):
         self.main_window.content = self.routine_box
@@ -136,6 +97,37 @@ class Healthytimer(toga.App):
         self.main_window.content = self.single_time_box
 
     def choose_view_tasks(self, widget):
+        self.view_tasks_box = toga.Box(style=Pack(direction=COLUMN))
+
+        data = []
+
+        for task in self.storage.get_all_tasks():
+            task_data = (task.id, task.name, task.due_date)
+            data.append(task_data)
+
+        self.tasks_table = toga.Table(
+            headings=['ID', 'Task', 'Due date'],
+            data=data,
+            on_select=self.on_task_select
+        )
+
+        self.table_back_to_main = toga.Button(
+            'Home',
+            on_press=self.home
+        )
+        self.edit_table_task = toga.Button(
+            'Edit',
+            on_press=self.home
+        )
+        self.delete_table_task = toga.Button(
+            'Delete',
+            on_press=self.home
+        )
+
+        self.view_tasks_box.add(self.tasks_table)
+        self.view_tasks_box.add(self.table_back_to_main)
+        self.view_tasks_box.add(self.edit_table_task)
+        self.view_tasks_box.add(self.delete_table_task)
         self.main_window.content = self.view_tasks_box
 
     def home(self, widget):
@@ -193,6 +185,13 @@ class Healthytimer(toga.App):
         self.scheduler.add_task(single_time)
         # self.rearranger.add_task(single_time)
         self.main_window.content = self.start_box
+
+    def on_task_select(self, widget):
+        row = widget.selection
+        if row is None:
+            return
+        task_id = row.id  # the first column value
+        self.selected_task = self.storage.find_task(task_id)
 
     def show_notification(self, name):
         async def _show():

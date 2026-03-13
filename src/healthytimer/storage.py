@@ -102,3 +102,28 @@ class Storage:
                     )
                 )
         return tasks
+
+    def find_task(self, id):
+        row = self.conn.execute(f"SELECT * FROM tasks WHERE id = ?", (id,)).fetchone()
+        if row["task_type"] == 'routine':
+            task = Routine(
+                    id=row["id"],
+                    name=row["name"],
+                    importance=Importance(row["importance"]),
+                    is_flexible=row["is_flexible"],
+                    created_at=datetime.fromisoformat(row["created_at"]),
+                    interval_time=row["interval_time"],
+                    unit=TimeUnit(row["unit"]),
+                    due_date=datetime.fromisoformat(row["due_date"]),
+                )
+        else:
+            task = Task(
+                    id=row["id"],
+                    name=row["name"],
+                    importance=Importance(row["importance"]),
+                    is_flexible=row["is_flexible"],
+                    created_at=datetime.fromisoformat(row["created_at"]),
+                    due_date=datetime.fromisoformat(row["due_date"]),
+                )
+
+        return task
