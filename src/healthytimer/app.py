@@ -117,11 +117,11 @@ class Healthytimer(toga.App):
         )
         self.edit_table_task = toga.Button(
             'Edit',
-            on_press=self.home
+            on_press=self.edit_selected_task
         )
         self.delete_table_task = toga.Button(
             'Delete',
-            on_press=self.home
+            on_press=self.delete_selected_task
         )
 
         self.view_tasks_box.add(self.tasks_table)
@@ -192,6 +192,12 @@ class Healthytimer(toga.App):
             return
         task_id = row.id  # the first column value
         self.selected_task = self.storage.find_task(task_id)
+
+    def edit_selected_task(self, widget):
+        pass
+
+    def delete_selected_task(self, widget):
+        pass
 
     def show_notification(self, name):
         async def _show():
