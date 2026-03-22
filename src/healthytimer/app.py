@@ -9,6 +9,7 @@ from datetime import time, datetime, timedelta
 from healthytimer.scheduler import Scheduler
 from healthytimer.storage import Storage
 from healthytimer.models import Task, Routine, TimeUnit, Importance
+from healthytimer.rearranger import Rearrangeer
 from toga.style.pack import COLUMN, ROW, Pack
 
 
@@ -20,6 +21,7 @@ class Healthytimer(toga.App):
             notify_callback=self.show_notification,
             storage=self.storage
         )
+        self.rearranger = Rearranger()
         self.start_box = toga.Box()
         self.routine_box = toga.Box()
         self.single_time_box = toga.Box()
@@ -163,8 +165,8 @@ class Healthytimer(toga.App):
             )
         )
         routine = self.storage.insert_routine(routine)
+        self.rearranger.add_task(routine)
         self.scheduler.add_task(routine)
-        # self.rearranger.add_task(routine)
         self.main_window.content = self.start_box
 
     def _create_single_time(self, widget):
@@ -185,8 +187,8 @@ class Healthytimer(toga.App):
         )
 
         single_time = self.storage.insert_single_time(single_time)
+        self.rearranger.add_task(single_time)
         self.scheduler.add_task(single_time)
-        # self.rearranger.add_task(single_time)
         self.main_window.content = self.start_box
 
     def submit_routine(self, widget):
