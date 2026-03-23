@@ -9,7 +9,7 @@ from datetime import time, datetime, timedelta
 from healthytimer.scheduler import Scheduler
 from healthytimer.storage import Storage
 from healthytimer.models import Task, Routine, TimeUnit, Importance
-from healthytimer.rearranger import Rearrangeer
+from healthytimer.rearranger import Rearranger
 from toga.style.pack import COLUMN, ROW, Pack
 
 

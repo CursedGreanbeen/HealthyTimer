@@ -40,3 +40,6 @@ class Routine(Task):
     interval_time: float = 0.0
     unit: TimeUnit = TimeUnit.DAYS
     # is_running = True
+
+    def interval_in_seconds(self) -> float:
+        return self.interval_time * self.unit.to_seconds()
