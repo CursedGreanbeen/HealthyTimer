@@ -53,6 +53,7 @@ class Rearranger:
             else:
                 week_sorted_dates = sorted(self.week.keys())
                 new_date = week_sorted_dates[-1]
+                self._notify_callback(new_date)
 
             task.due_date = new_date
             moved_tasks.append(task)

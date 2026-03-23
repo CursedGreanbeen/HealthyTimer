@@ -21,7 +21,12 @@ class Healthytimer(toga.App):
             notify_callback=self.show_notification,
             storage=self.storage
         )
-        self.rearranger = Rearranger()
+        week = self.collect_week()
+        self.rearranger = Rearranger(
+            notify_callback=self.show_warning,
+            week=week
+        )
+
         self.start_box = toga.Box()
         self.routine_box = toga.Box()
         self.single_time_box = toga.Box()
@@ -165,7 +170,9 @@ class Healthytimer(toga.App):
             )
         )
         routine = self.storage.insert_routine(routine)
-        self.rearranger.add_task(routine)
+        moved_tasks = self.rearranger.new_task(routine, int(self.max_per_day_input.value))
+        for task in moved_tasks:
+            self.storage.update_routine(task)
         self.scheduler.add_task(routine)
         self.main_window.content = self.start_box
 
@@ -187,7 +194,9 @@ class Healthytimer(toga.App):
         )
 
         single_time = self.storage.insert_single_time(single_time)
-        self.rearranger.add_task(single_time)
+        moved_tasks = self.rearranger.new_task(single_time, int(self.max_per_day_input.value))
+        for task in moved_tasks:
+            self.storage.update_single_time(task)
         self.scheduler.add_task(single_time)
         self.main_window.content = self.start_box
 
@@ -257,7 +266,7 @@ class Healthytimer(toga.App):
         task.importance = importance_map[self.routine_importance_input.value]
         task.is_flexible = self.routine_is_flexible_input.value
         task.due_date = datetime.now() + timedelta(
-            seconds=task.interval_time * task.unit.to_seconds()
+            seconds=task.interval_in_seconds()
         )
         self.storage.update_routine(task)
         self.scheduler.cancel_task(task.id)
@@ -277,6 +286,21 @@ class Healthytimer(toga.App):
             await self.main_window.dialog(toga.InfoDialog('Напоминание', name))
         asyncio.run_coroutine_threadsafe(_show(), self.loop)
 
+    def collect_week(self):
+        week_window = datetime.now() + timedelta(days=7)
+        week = {(datetime.now() + timedelta(days=i)).date(): [] for i in range(7)}
+        for task in self.storage.get_all_tasks():
+            if datetime.now() <= task.due_date < week_window:
+                week[task.due_date.date()].append(task)
+        return week
+
+    def show_warning(self, date):
+        async def _show():
+            await self.main_window.dialog(toga.InfoDialog(
+                f'No available days found. All extra tasks will be moved to {date} — '
+                'the furthest day in your current week view'
+            ))
+        asyncio.run_coroutine_threadsafe(_show(), self.loop)
 
 def main():
     return Healthytimer()
