@@ -30,6 +30,7 @@ class Task:
     name: str
     importance: Importance
     is_flexible: bool
+    due_date: datetime = field(default=None)
     id: int = field(default=None)
     created_at: datetime = field(default_factory=datetime.now)
 
@@ -38,9 +39,7 @@ class Task:
 class Routine(Task):
     interval_time: float = 0.0
     unit: TimeUnit = TimeUnit.DAYS
-    next_due: datetime = field(default=None)
+    # is_running = True
 
-
-@dataclass
-class SingleTime(Task):
-    due_date: datetime = field(default=None)
+    def interval_in_seconds(self) -> float:
+        return self.interval_time * self.unit.to_seconds()
