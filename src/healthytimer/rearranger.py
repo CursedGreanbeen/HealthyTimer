@@ -21,7 +21,7 @@ class Rearranger:
             interval = 0
             if isinstance(t, Routine):
                 interval = t.interval_in_seconds()
-            return t.importance, interval, t.created_at
+            return -t.importance.value, interval, t.created_at
 
         days_tasks_shift = []
         for day in overloaded:

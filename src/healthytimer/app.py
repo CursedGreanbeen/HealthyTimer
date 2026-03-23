@@ -21,7 +21,6 @@ class Healthytimer(toga.App):
         self.scheduler = Scheduler(notify_callback=self.show_notification, storage=self.storage)
         self.rearranger = Rearranger(notify_callback=self.show_warning, week={})
         self.controller = TaskService(self.storage, self.scheduler, self.rearranger)
-        self.rearranger.week = self.controller.collect_week()
 
         self.start_box = toga.Box()
         self.routine_box = toga.Box()
@@ -31,19 +30,10 @@ class Healthytimer(toga.App):
         self.main_window.content = self.start_box
         self.main_window.show()
 
-        self.max_per_day_input = toga.TextInput(placeholder='Max tasks per day')
-        self.new_routine = toga.Button(
-            'New routine',
-            on_press=self.choose_routine
-        )
-        self.new_single_time = toga.Button(
-            'New single-time task',
-            on_press=self.choose_single_time
-        )
-        self.view_tasks = toga.Button(
-            'View tasks',
-            on_press=self.choose_view_tasks
-        )
+        self.max_per_day_input = toga.NumberInput(min=1, max=20, step=1)
+        self.new_routine = toga.Button('New routine', on_press=self.choose_routine)
+        self.new_single_time = toga.Button('New single-time task', on_press=self.choose_single_time)
+        self.view_tasks = toga.Button('View tasks', on_press=self.choose_view_tasks)
 
         self.start_box.add(self.max_per_day_input)
         self.start_box.add(self.new_routine)
@@ -51,19 +41,13 @@ class Healthytimer(toga.App):
         self.start_box.add(self.view_tasks)
 
         # ROUTINES
-        self.routine_back_to_main = toga.Button(
-            'Home',
-            on_press=self.home
-        )
+        self.routine_back_to_main = toga.Button('Home', on_press=self.home)
         self.routine_input = toga.TextInput(placeholder='task text')
-        self.routine_interval_time_input = toga.TextInput(placeholder='time interval')
+        self.routine_interval_time_input = toga.NumberInput(min=1, max=20, step=1)
         self.routine_unit_input = toga.Selection(items=['minutes', 'hours', 'days', 'weeks'])
         self.routine_importance_input = toga.Selection(items=['low', 'medium', 'high'])
-        self.routine_is_flexible_input = toga.Switch(text="Is it rearrangable?")
-        self.routine_add_remind = toga.Button(
-            'Add reminder',
-            on_press=self.submit_routine
-        )
+        self.routine_is_flexible_input = toga.Switch(text="rearrangable")
+        self.routine_add_remind = toga.Button('Add reminder', on_press=self.submit_routine)
         self.routine_box.add(self.routine_back_to_main)
         self.routine_box.add(self.routine_input)
         self.routine_box.add(self.routine_interval_time_input)
@@ -73,18 +57,12 @@ class Healthytimer(toga.App):
         self.routine_box.add(self.routine_add_remind)
 
         # SINGLE-TIME TASKS
-        self.single_time_back_to_main = toga.Button(
-            'Home',
-            on_press=self.home
-        )
+        self.single_time_back_to_main = toga.Button('Home', on_press=self.home)
         self.single_time_input = toga.TextInput(placeholder='task text')
         self.single_time_deadline_input = toga.DateInput()
         self.single_time_importance_input = toga.Selection(items=['low', 'medium', 'high'])
-        self.single_time_is_flexible_input = toga.Switch(text="Is it rearrangable?")
-        self.single_time_add_remind = toga.Button(
-            'Add reminder',
-            on_press=self.submit_single_time
-        )
+        self.single_time_is_flexible_input = toga.Switch(text="rearrangable")
+        self.single_time_add_remind = toga.Button('Add reminder', on_press=self.submit_single_time)
         self.single_time_box.add(self.single_time_back_to_main)
         self.single_time_box.add(self.single_time_input)
         self.single_time_box.add(self.single_time_deadline_input)
