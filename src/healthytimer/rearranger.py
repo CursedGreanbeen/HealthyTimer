@@ -49,7 +49,7 @@ class Rearranger:
                     l_day = light[len(light) // 2]
 
                 new_date = l_day
-                light = [l_day for l_day in light if len(self.week[l_day]) < max_per_day]
+                light = [l for l in light if len(self.week[l]) < max_per_day]
             else:
                 week_sorted_dates = sorted(self.week.keys())
                 new_date = week_sorted_dates[-1]
