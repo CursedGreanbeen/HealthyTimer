@@ -6,6 +6,7 @@ import toga
 import asyncio
 import os
 from datetime import time, datetime, timedelta
+from healthytimer.controller import TaskService
 from healthytimer.scheduler import Scheduler
 from healthytimer.storage import Storage
 from healthytimer.models import Task, Routine, TimeUnit, Importance
@@ -17,15 +18,9 @@ class Healthytimer(toga.App):
     def startup(self):
         db_path = os.path.join(os.path.dirname(__file__), "tasks.db")
         self.storage = Storage(db_path)
-        self.scheduler = Scheduler(
-            notify_callback=self.show_notification,
-            storage=self.storage
-        )
-        week = self.collect_week()
-        self.rearranger = Rearranger(
-            notify_callback=self.show_warning,
-            week=week
-        )
+        self.scheduler = Scheduler(notify_callback=self.show_notification, storage=self.storage)
+        self.rearranger = Rearranger(notify_callback=self.show_warning, week={})
+        self.controller = TaskService(self.storage, self.scheduler, self.rearranger)
 
         self.start_box = toga.Box()
         self.routine_box = toga.Box()
@@ -35,19 +30,10 @@ class Healthytimer(toga.App):
         self.main_window.content = self.start_box
         self.main_window.show()
 
-        self.max_per_day_input = toga.TextInput(placeholder='Max tasks per day')
-        self.new_routine = toga.Button(
-            'New routine',
-            on_press=self.choose_routine
-        )
-        self.new_single_time = toga.Button(
-            'New single-time task',
-            on_press=self.choose_single_time
-        )
-        self.view_tasks = toga.Button(
-            'View tasks',
-            on_press=self.choose_view_tasks
-        )
+        self.max_per_day_input = toga.NumberInput(min=1, max=20, step=1)
+        self.new_routine = toga.Button('New routine', on_press=self.choose_routine)
+        self.new_single_time = toga.Button('New single-time task', on_press=self.choose_single_time)
+        self.view_tasks = toga.Button('View tasks', on_press=self.choose_view_tasks)
 
         self.start_box.add(self.max_per_day_input)
         self.start_box.add(self.new_routine)
@@ -55,19 +41,13 @@ class Healthytimer(toga.App):
         self.start_box.add(self.view_tasks)
 
         # ROUTINES
-        self.routine_back_to_main = toga.Button(
-            'Home',
-            on_press=self.home
-        )
+        self.routine_back_to_main = toga.Button('Home', on_press=self.home)
         self.routine_input = toga.TextInput(placeholder='task text')
-        self.routine_interval_time_input = toga.TextInput(placeholder='time interval')
+        self.routine_interval_time_input = toga.NumberInput(min=1, max=20, step=1)
         self.routine_unit_input = toga.Selection(items=['minutes', 'hours', 'days', 'weeks'])
         self.routine_importance_input = toga.Selection(items=['low', 'medium', 'high'])
-        self.routine_is_flexible_input = toga.Switch(text="Is it rearrangable?")
-        self.routine_add_remind = toga.Button(
-            'Add reminder',
-            on_press=self.submit_routine
-        )
+        self.routine_is_flexible_input = toga.Switch(text="rearrangable")
+        self.routine_add_remind = toga.Button('Add reminder', on_press=self.submit_routine)
         self.routine_box.add(self.routine_back_to_main)
         self.routine_box.add(self.routine_input)
         self.routine_box.add(self.routine_interval_time_input)
@@ -77,18 +57,12 @@ class Healthytimer(toga.App):
         self.routine_box.add(self.routine_add_remind)
 
         # SINGLE-TIME TASKS
-        self.single_time_back_to_main = toga.Button(
-            'Home',
-            on_press=self.home
-        )
+        self.single_time_back_to_main = toga.Button('Home', on_press=self.home)
         self.single_time_input = toga.TextInput(placeholder='task text')
         self.single_time_deadline_input = toga.DateInput()
         self.single_time_importance_input = toga.Selection(items=['low', 'medium', 'high'])
-        self.single_time_is_flexible_input = toga.Switch(text="Is it rearrangable?")
-        self.single_time_add_remind = toga.Button(
-            'Add reminder',
-            on_press=self.submit_single_time
-        )
+        self.single_time_is_flexible_input = toga.Switch(text="rearrangable")
+        self.single_time_add_remind = toga.Button('Add reminder', on_press=self.submit_single_time)
         self.single_time_box.add(self.single_time_back_to_main)
         self.single_time_box.add(self.single_time_input)
         self.single_time_box.add(self.single_time_deadline_input)
@@ -108,10 +82,9 @@ class Healthytimer(toga.App):
 
     def choose_view_tasks(self, widget):
         self.view_tasks_box = toga.Box(style=Pack(direction=COLUMN))
-
         data = []
 
-        for task in self.storage.get_all_tasks():
+        for task in self.controller.storage.get_all_tasks():
             task_data = (task.id, task.name, task.due_date)
             data.append(task_data)
 
@@ -121,18 +94,9 @@ class Healthytimer(toga.App):
             on_select=self.on_task_select
         )
 
-        self.table_back_to_main = toga.Button(
-            'Home',
-            on_press=self.home
-        )
-        self.edit_table_task = toga.Button(
-            'Edit',
-            on_press=self.edit_selected_task
-        )
-        self.delete_table_task = toga.Button(
-            'Delete',
-            on_press=self.delete_selected_task
-        )
+        self.table_back_to_main = toga.Button('Home', on_press=self.home)
+        self.edit_table_task = toga.Button('Edit', on_press=self.edit_selected_task)
+        self.delete_table_task = toga.Button('Delete', on_press=self.delete_selected_task)
 
         self.view_tasks_box.add(self.tasks_table)
         self.view_tasks_box.add(self.table_back_to_main)
@@ -158,22 +122,17 @@ class Healthytimer(toga.App):
             'days': TimeUnit.DAYS,
             'weeks': TimeUnit.WEEKS
         }
+        importance = importance_map[self.routine_importance_input.value]
         unit = unit_map[self.routine_unit_input.value]
-        routine = Routine(
+
+        self.controller.create_routine(
             name=self.routine_input.value,
             interval_time=float(self.routine_interval_time_input.value),
             unit=unit,
-            importance=importance_map[self.routine_importance_input.value],
+            importance=importance,
             is_flexible=self.routine_is_flexible_input.value,
-            due_date=datetime.now() + timedelta(
-                seconds=float(self.routine_interval_time_input.value) * unit.to_seconds()
-            )
+            max_per_day=int(self.max_per_day_input.value)
         )
-        routine = self.storage.insert_routine(routine)
-        moved_tasks = self.rearranger.new_task(routine, int(self.max_per_day_input.value))
-        for task in moved_tasks:
-            self.storage.update_routine(task)
-        self.scheduler.add_task(routine)
         self.main_window.content = self.start_box
 
     def _create_single_time(self, widget):
@@ -185,19 +144,15 @@ class Healthytimer(toga.App):
             'medium': Importance.MEDIUM,
             'high': Importance.HIGH
         }
+        importance = importance_map[self.single_time_importance_input.value]
 
-        single_time = Task(
+        self.controller.create_single_time(
             name=self.single_time_input.value,
-            importance=importance_map[self.single_time_importance_input.value],
+            importance=importance,
             is_flexible=self.single_time_is_flexible_input.value,
-            due_date=datetime.combine(self.single_time_deadline_input.value, time(0, 0, 0))
+            date=self.single_time_deadline_input.value,
+            max_per_day=int(self.max_per_day_input.value)
         )
-
-        single_time = self.storage.insert_single_time(single_time)
-        moved_tasks = self.rearranger.new_task(single_time, int(self.max_per_day_input.value))
-        for task in moved_tasks:
-            self.storage.update_single_time(task)
-        self.scheduler.add_task(single_time)
         self.main_window.content = self.start_box
 
     def submit_routine(self, widget):
@@ -217,7 +172,7 @@ class Healthytimer(toga.App):
         if row is None:
             return
         task_id = row.id  # the first column value
-        self.selected_task = self.storage.find_task(task_id)
+        self.selected_task = self.controller.storage.find_task(task_id)
 
     def edit_selected_task(self, widget):
         if not hasattr(self, 'selected_task'):
@@ -244,55 +199,41 @@ class Healthytimer(toga.App):
 
     def _update_single_time(self):
         importance_map = {'low': Importance.LOW, 'medium': Importance.MEDIUM, 'high': Importance.HIGH}
-        task = self.editing_task
-        task.name = self.single_time_input.value
-        task.importance = importance_map[self.single_time_importance_input.value]
-        task.is_flexible = self.single_time_is_flexible_input.value
-        task.due_date = datetime.combine(self.single_time_deadline_input.value, time(0, 0, 0))
-        self.storage.update_routine(task)  # reuses the due_date update query
-        self.scheduler.cancel_task(task.id)
-        self.scheduler.add_task(task)
+        self.controller.update_single_time(
+            task=self.editing_task,
+            name=self.single_time_input.value,
+            importance=importance_map[self.single_time_importance_input.value],
+            is_flexible=self.single_time_is_flexible_input.value,
+            date=self.single_time_deadline_input.value
+        )
+
         self.editing_task = None
         self.main_window.content = self.view_tasks_box
 
     def _update_routine(self):
         importance_map = {'low': Importance.LOW, 'medium': Importance.MEDIUM, 'high': Importance.HIGH}
-        unit_map = {'minutes': TimeUnit.MINUTES, 'hours': TimeUnit.HOURS,
-                    'days': TimeUnit.DAYS, 'weeks': TimeUnit.WEEKS}
-        task = self.editing_task
-        task.name = self.routine_input.value
-        task.interval_time = float(self.routine_interval_time_input.value)
-        task.unit = unit_map[self.routine_unit_input.value]
-        task.importance = importance_map[self.routine_importance_input.value]
-        task.is_flexible = self.routine_is_flexible_input.value
-        task.due_date = datetime.now() + timedelta(
-            seconds=task.interval_in_seconds()
+        unit_map = {'minutes': TimeUnit.MINUTES, 'hours': TimeUnit.HOURS, 'days': TimeUnit.DAYS, 'weeks': TimeUnit.WEEKS}
+        self.controller.update_routine(
+            task=self.editing_task,
+            name=self.routine_input.value,
+            interval_time=float(self.routine_interval_time_input.value),
+            unit=unit_map[self.routine_unit_input.value],
+            importance=importance_map[self.routine_importance_input.value],
+            is_flexible=self.routine_is_flexible_input.value
         )
-        self.storage.update_routine(task)
-        self.scheduler.cancel_task(task.id)
-        self.scheduler.add_task(task)
         self.editing_task = None
         self.main_window.content = self.view_tasks_box
 
     def delete_selected_task(self, widget):
         if not hasattr(self, 'selected_task'):
             return
-        self.storage.delete_task(self.selected_task)
-        self.scheduler.cancel_task(self.selected_task.id)
+        self.controller.delete_task(self.selected_task)
         self.choose_view_tasks(widget)
 
     def show_notification(self, name):
         async def _show():
             await self.main_window.dialog(toga.InfoDialog('Напоминание', name))
         asyncio.run_coroutine_threadsafe(_show(), self.loop)
-
-    def collect_week(self):
-        week_window = datetime.now() + timedelta(days=7)
-        week = {(datetime.now() + timedelta(days=i)).date(): [] for i in range(7)}
-        for task in self.storage.get_all_tasks():
-            if datetime.now() <= task.due_date < week_window:
-                week[task.due_date.date()].append(task)
-        return week
 
     def show_warning(self, date):
         async def _show():
@@ -301,6 +242,7 @@ class Healthytimer(toga.App):
                 'the furthest day in your current week view'
             ))
         asyncio.run_coroutine_threadsafe(_show(), self.loop)
+
 
 def main():
     return Healthytimer()

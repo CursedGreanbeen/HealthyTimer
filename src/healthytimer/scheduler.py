@@ -32,9 +32,9 @@ class Scheduler:
                 self._notify_callback(next_task.name)
                 if isinstance(next_task, Routine):
                     next_task.due_date = datetime.now() + timedelta(
-                        seconds=next_task.interval_time * next_task.unit.to_seconds()
+                        seconds=next_task.interval_in_seconds()
                     )
-                    self._storage.update_routine(next_task)
+                    self._storage.update_task(next_task)
                 else:
                     self._tasks.pop(next_task.id)
                     self._storage.delete_task(next_task)
