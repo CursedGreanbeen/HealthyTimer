@@ -4,10 +4,12 @@ from enum import Enum
 
 
 class TimeUnit(Enum):
-    MINUTES = 1
-    HOURS = 2
-    DAYS = 3
-    WEEKS = 4
+    MINUTES = 0
+    HOURS = 1
+    DAYS = 2
+    WEEKS = 3
+    MONTHS = 4
+    YEARS = 5
 
     def to_seconds(self) -> float:
         conversions = {
@@ -27,6 +29,7 @@ class Importance(Enum):
 
 @dataclass
 class Task:
+    user_id: int
     name: str
     importance: Importance
     is_flexible: bool

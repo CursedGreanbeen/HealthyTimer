@@ -5,7 +5,7 @@ import os
 
 
 class Storage:
-    def __init__(self, db_path: str = 'tasks.db'):
+    def __init__(self, db_path: str = 'tasks_users.db'):
         self.db_path = db_path
         self._init_db()
 
@@ -19,6 +19,7 @@ class Storage:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS tasks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT REFERENCES users(chat_id),
                 created_at TEXT,
                 task_type TEXT,
                 name TEXT NOT NULL,
@@ -29,16 +30,41 @@ class Storage:
                 due_date TEXT
             ) 
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                chat_id INTEGER PRIMARY KEY,
+                created_at TEXT,
+                max_per_day INTEGER NOT NULL
+            )
+        """)
         conn.commit()
         conn.close()
+
+    def init_user(self, chat_id: int, max_per_day: int):
+        conn = self._get_conn()
+        conn.execute("""
+            INSERT OR IGNORE INTO users (chat_id, max_per_day)
+            VALUES (?, ?) 
+        """, (chat_id, max_per_day))
+        conn.commit()
+        conn.close()
+
+    def get_max_per_day(self, chat_id: int) -> int:
+        conn = self._get_conn()
+        row = conn.execute(
+            "SELECT max_per_day FROM users WHERE chat_id = ?", (chat_id,)
+        ).fetchone()
+        conn.close()
+        return row["max_per_day"] if row else 5 # default
 
     def insert_routine(self, routine: Routine) -> Routine:
         conn = self._get_conn()
         cursor = conn.execute(
             "INSERT INTO tasks "
-            "(task_type, name, importance, is_flexible, created_at, interval_time, unit, due_date) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "(user_id, task_type, name, importance, is_flexible, created_at, interval_time, unit, due_date) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
+                routine.user_id,
                 'routine',
                 routine.name,
                 routine.importance.value,
@@ -58,9 +84,10 @@ class Storage:
         conn = self._get_conn()
         cursor = conn.execute(
             "INSERT INTO tasks "
-            "(task_type, name, importance, is_flexible, created_at, due_date) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
+            "(user_id, task_type, name, importance, is_flexible, created_at, due_date) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
+                singletime.user_id,
                 'single_time',
                 singletime.name,
                 singletime.importance.value,
@@ -95,6 +122,7 @@ class Storage:
             if row["task_type"] == 'routine':
                 tasks.append(
                     Routine(
+                        user_id=row["user_id"],
                         id=row["id"],
                         name=row["name"],
                         importance=Importance(row["importance"]),
@@ -108,6 +136,7 @@ class Storage:
             else:
                 tasks.append(
                     Task(
+                        user_id=row["user_id"],
                         id=row["id"],
                         name=row["name"],
                         importance=Importance(row["importance"]),
@@ -124,6 +153,7 @@ class Storage:
         row = conn.execute(f"SELECT * FROM tasks WHERE id = ?", (id,)).fetchone()
         if row["task_type"] == 'routine':
             task = Routine(
+                    user_id=row["user_id"],
                     id=row["id"],
                     name=row["name"],
                     importance=Importance(row["importance"]),
@@ -135,6 +165,7 @@ class Storage:
                 )
         else:
             task = Task(
+                    user_id=row["user_id"],
                     id=row["id"],
                     name=row["name"],
                     importance=Importance(row["importance"]),

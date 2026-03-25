@@ -63,3 +63,5 @@ logs/
 
 # Briefcase local configuratoin
 .briefcase/
+
+.env

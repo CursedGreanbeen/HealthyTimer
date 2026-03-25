@@ -20,8 +20,9 @@ class TaskService:
                 week[task.due_date.date()].append(task)
         return week
 
-    def create_routine(self, name, interval_time, unit, importance, is_flexible, max_per_day):
+    def create_routine(self, user_id, name, interval_time, unit, importance, is_flexible, max_per_day):
         routine = Routine(
+            user_id=user_id,
             name=name,
             interval_time=interval_time,
             unit=unit,
@@ -35,8 +36,9 @@ class TaskService:
             self.storage.update_task(task)
         self.scheduler.add_task(routine)
 
-    def create_single_time(self, name, importance, is_flexible, date, max_per_day):
+    def create_single_time(self, user_id, name, importance, is_flexible, date, max_per_day):
         single_time = Task(
+            user_id=user_id,
             name=name,
             importance=importance,
             is_flexible=is_flexible,

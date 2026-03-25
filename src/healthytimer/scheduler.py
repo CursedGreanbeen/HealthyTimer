@@ -29,7 +29,7 @@ class Scheduler:
             self._wakeup.wait(timeout=seconds)
 
             if next_task and (next_task.due_date <= datetime.now()):
-                self._notify_callback(next_task.name)
+                self._notify_callback(next_task)
                 if isinstance(next_task, Routine):
                     next_task.due_date = datetime.now() + timedelta(
                         seconds=next_task.interval_in_seconds()

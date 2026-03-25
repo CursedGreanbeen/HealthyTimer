@@ -117,10 +117,11 @@ class Healthytimer(toga.App):
             'high': Importance.HIGH
         }
         unit_map = {
-            'minutes': TimeUnit.MINUTES,
             'hours': TimeUnit.HOURS,
             'days': TimeUnit.DAYS,
-            'weeks': TimeUnit.WEEKS
+            'weeks': TimeUnit.WEEKS,
+            'months': TimeUnit.MONTHS,
+            'years': TimeUnit.YEARS
         }
         importance = importance_map[self.routine_importance_input.value]
         unit = unit_map[self.routine_unit_input.value]
@@ -165,7 +166,8 @@ class Healthytimer(toga.App):
         if self.editing_task:
             self._update_single_time()
         else:
-            self._create_single_time(widget)
+            if self.single_time_deadline_input.value >= datetime.now().date():
+                self._create_single_time(widget)
 
     def on_task_select(self, widget):
         row = widget.selection
