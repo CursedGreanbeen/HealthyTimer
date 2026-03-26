@@ -10,12 +10,11 @@ class TaskService:
         self.storage = storage
         self.scheduler = scheduler
         self.rearranger = rearranger
-        self.rearranger.week = self.collect_week()
 
-    def collect_week(self):
+    def collect_week(self, user_id):
         week_window = datetime.now() + timedelta(days=7)
         week = {(datetime.now() + timedelta(days=i)).date(): [] for i in range(8)}
-        for task in self.storage.get_all_tasks():
+        for task in self.storage.get_all_tasks(user_id):
             if datetime.now() <= task.due_date <= week_window:
                 week[task.due_date.date()].append(task)
         return week
@@ -31,6 +30,7 @@ class TaskService:
             due_date=datetime.now() + timedelta(seconds=interval_time * unit.to_seconds())
         )
         routine = self.storage.insert_routine(routine)
+        self.rearranger.week = self.collect_week(user_id)
         moved_tasks = self.rearranger.new_task(routine, max_per_day)
         for task in moved_tasks:
             self.storage.update_task(task)
@@ -45,6 +45,7 @@ class TaskService:
             due_date=datetime.combine(date, time(0, 0, 0))
         )
         single_time = self.storage.insert_single_time(single_time)
+        self.rearranger.week = self.collect_week(user_id)
         moved_tasks = self.rearranger.new_task(single_time, max_per_day)
         for task in moved_tasks:
             self.storage.update_task(task)

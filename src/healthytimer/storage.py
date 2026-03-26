@@ -104,7 +104,7 @@ class Storage:
     def update_task(self, task):
         conn = self._get_conn()
         conn.execute(f"UPDATE tasks SET due_date = ? WHERE id = ?",
-                                   (task.due_date.isoformat(), task.id,))
+                     (task.due_date.isoformat(), task.id,))
         conn.commit()
         conn.close()
 
@@ -114,10 +114,10 @@ class Storage:
         conn.commit()
         conn.close()
 
-    def get_all_tasks(self) -> list[Task]:
+    def get_all_tasks(self, user_id) -> list[Task]:
         conn = self._get_conn()
         tasks = []
-        rows = conn.execute("SELECT * FROM tasks").fetchall()
+        rows = conn.execute("SELECT * FROM tasks WHERE user_id = ?", (user_id,)).fetchall()
         for row in rows:
             if row["task_type"] == 'routine':
                 tasks.append(

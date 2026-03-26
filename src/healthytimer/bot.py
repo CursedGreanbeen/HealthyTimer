@@ -19,6 +19,16 @@ TOKEN = os.getenv("TOKEN")
 ASK_MAX_TASKS = 100
 
 
+def main_menu_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("Добавить рутину", callback_data="new_routine")],
+        [InlineKeyboardButton("Добавить задание", callback_data="new_single_time")],
+        [InlineKeyboardButton("Посмотреть недельный план", callback_data="view_tasks")],
+        [InlineKeyboardButton("Изменить лимит", callback_data="max_per_day")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Привет, я твой личный таск-менеджер! "
                                     "Сколько дел ты планируешь выполнять ежедневно?")
@@ -29,16 +39,14 @@ async def get_max_per_day(update, context):
     max_per_day = int(update.message.text)
     storage = context.bot_data['storage']
     storage.init_user(chat_id, max_per_day)
-    keyboard = [
-        [InlineKeyboardButton("Добавить рутину", callback_data="new_routine")],
-        [InlineKeyboardButton("Добавить задание", callback_data="new_task")],
-        [InlineKeyboardButton("Все мои дела", callback_data="view_tasks")],
-        [InlineKeyboardButton("Изменить лимит", callback_data="max_per_day")],
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+
     await update.message.reply_text(f"Хорошо, я буду стараться составлять график на ближайшую "
                                     f"неделю так, чтобы у тебя было не больше {update.message.text} "
-                                    f"дел в день (по возможности)", reply_markup=reply_markup)
+                                    f"дел в день (по возможности)", reply_markup=main_menu_keyboard())
+    return ConversationHandler.END
+
+async def menu(update, context):
+    await update.message.reply_text(f"Что хочешь сделать дальше?", reply_markup=main_menu_keyboard())
     return ConversationHandler.END
 
 async def handle_menu(update, context):
@@ -50,7 +58,7 @@ async def handle_menu(update, context):
     elif query.data == "new_single_time":
         await query.message.reply_text("Добавим разовую задачу")
     elif query.data == "view_tasks":
-        await query.message.reply_text("Все твои задачи")
+        await query.message.reply_text("Все твои задачи на ближайшую неделю")
     else:
         await query.message.reply_text("Сколько задач в день всё-таки хочешь делать?")
 
@@ -99,7 +107,7 @@ async def ask_routine_flexible(update, context):
         InlineKeyboardButton("Да", callback_data="true"),
         InlineKeyboardButton("Нет", callback_data="false"),
     ]]
-    await update.callback_query.message.reply_text("Можно переносить?", reply_markup=InlineKeyboardMarkup(keyboard))
+    await update.callback_query.message.reply_text("Можно ли переносить дату/время выполнения?", reply_markup=InlineKeyboardMarkup(keyboard))
     return ROUTINE_FLEXIBLE
 
 async def save_routine(update, context):
@@ -144,7 +152,7 @@ async def save_routine(update, context):
 async def ask_single_time_name(update, context):
     query = update.callback_query
     await query.answer()
-    await query.message.reply_text("Название")
+    await query.message.reply_text("Введи название")
     return SINGLE_TIME_NAME
 
 async def ask_single_time_date(update, context):
@@ -159,7 +167,7 @@ async def ask_single_time_importance(update, context):
         [InlineKeyboardButton("Средняя", callback_data="medium")],
         [InlineKeyboardButton("Высокая", callback_data="high")],
     ]
-    await update.message.reply_text("Важность", reply_markup=InlineKeyboardMarkup(keyboard))
+    await update.message.reply_text("Важность выполнения", reply_markup=InlineKeyboardMarkup(keyboard))
     return SINGLE_TIME_IMPORTANCE
 
 async def ask_single_time_flexible(update, context):
@@ -168,7 +176,7 @@ async def ask_single_time_flexible(update, context):
         InlineKeyboardButton("Да", callback_data="true"),
         InlineKeyboardButton("Нет", callback_data="false"),
     ]]
-    await update.callback_query.message.reply_text("Можно переносить?", reply_markup=InlineKeyboardMarkup(keyboard))
+    await update.callback_query.message.reply_text("Можно ли переносить дату/время выполнения?", reply_markup=InlineKeyboardMarkup(keyboard))
     return SINGLE_TIME_FLEXIBLE
 
 async def save_single_time(update, context):
@@ -203,6 +211,32 @@ async def save_single_time(update, context):
     return ConversationHandler.END
 #endregion
 
+# VIEW TASKS CONVERSATION
+#region
+async def view_tasks(update, context):
+    query = update.callback_query
+    controller = context.bot_data["controller"]
+    user_id = update.effective_user.id
+    week = controller.collect_week(user_id)
+    importance_map = {
+        Importance.LOW: 'Низкая важность',
+        Importance.MEDIUM: 'Средняя важность',
+        Importance.HIGH: 'Высокая важность',
+    }
+
+    day_info = ''
+    for day, tasks in week.items():
+        day_info += f"{day}:\n"
+        if tasks:
+            for task in tasks:
+                day_info += f"{task.name} - {importance_map[task.importance]}\n"
+        else:
+            day_info += "Нет задач на этот день\n"
+    await query.message.reply_text(day_info)
+#endregion
+
+# CONVERSATION HANDLERS
+#region
 registration_handler = ConversationHandler(
     entry_points=[CommandHandler("start", start)],
     states={
@@ -211,6 +245,8 @@ registration_handler = ConversationHandler(
     fallbacks=[],
     per_message=False
 )
+
+menu_handler = CommandHandler("menu", menu)
 
 routine_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(ask_routine_name, pattern="^new_routine$")],
@@ -237,6 +273,9 @@ single_time_handler = ConversationHandler(
     per_message=False
 )
 
+view_tasks_handler = CallbackQueryHandler(view_tasks, pattern="^view_tasks$")
+#endregion
+
 db_path = os.path.join(os.path.dirname(__file__), "tasks_users.db")
 
 async def startup(app):
@@ -253,6 +292,8 @@ async def startup(app):
 
 app = Application.builder().token(TOKEN).post_init(startup).build()
 app.add_handler(registration_handler)
+app.add_handler(menu_handler)
 app.add_handler(routine_handler)
 app.add_handler(single_time_handler)
+app.add_handler(view_tasks_handler)
 app.run_polling()
