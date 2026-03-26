@@ -2,9 +2,9 @@ import asyncio
 
 
 class Notifier:
-    def __init__(self, app):
+    def __init__(self, app, loop):
         self.app = app
-        self.loop = asyncio.get_event_loop()
+        self.loop = loop
 
     def notify_task(self, task):
         coro = self.app.bot.send_message(chat_id=task.user_id, text=f"Напоминание: {task.name}")

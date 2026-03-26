@@ -1,5 +1,7 @@
 from dotenv import load_dotenv
 import os
+from dateutil import parser
+import asyncio
 from telegram import Update
 from telegram.ext import Application, filters, ContextTypes
 from telegram.ext import ConversationHandler, MessageHandler, CommandHandler, CallbackQueryHandler
@@ -10,7 +12,6 @@ from healthytimer.storage import Storage
 from healthytimer.rearranger import Rearranger
 from healthytimer.notifier import Notifier
 from healthytimer.models import Task, Routine, TimeUnit, Importance
-import asyncio
 
 
 load_dotenv()
@@ -46,7 +47,7 @@ async def handle_menu(update, context):
 
     if query.data == "new_routine":
         await query.message.reply_text("Добавим регулярную задачу")
-    elif query.data == "new_task":
+    elif query.data == "new_single_time":
         await query.message.reply_text("Добавим разовую задачу")
     elif query.data == "view_tasks":
         await query.message.reply_text("Все твои задачи")
@@ -61,7 +62,7 @@ async def handle_menu(update, context):
 async def ask_routine_name(update, context):
     query = update.callback_query
     await query.answer()
-    await query.message.reply_text("Название")
+    await query.message.reply_text("Введи название")
     return ROUTINE_NAME
 
 async def ask_routine_unit(update, context):
@@ -104,6 +105,7 @@ async def ask_routine_flexible(update, context):
 async def save_routine(update, context):
     user_id = update.callback_query.from_user.id
     storage = context.bot_data['storage']
+    controller = context.bot_data["controller"]
     max_per_day = storage.get_max_per_day(user_id)
     context.user_data["routine_flexible"] = update.callback_query.data == "true"
     importance_map = {
@@ -121,7 +123,6 @@ async def save_routine(update, context):
     }
     importance = importance_map[context.user_data["routine_importance"]]
     unit = unit_map[context.user_data["routine_unit"]]
-    controller = context.bot_data["controller"]
     controller.create_routine(
         user_id=user_id,
         name=context.user_data["routine_name"],
@@ -131,7 +132,7 @@ async def save_routine(update, context):
         is_flexible=context.user_data["routine_flexible"],
         max_per_day=max_per_day
     )
-    await update.callback_query.message.reply_text("Готово!")
+    await update.callback_query.message.reply_text(f"Готово! Добавлена задача {context.user_data["routine_name"]}")
     return ConversationHandler.END
 #endregion
 
@@ -173,6 +174,7 @@ async def ask_single_time_flexible(update, context):
 async def save_single_time(update, context):
     user_id = update.callback_query.from_user.id
     storage = context.bot_data['storage']
+    controller = context.bot_data["controller"]
     max_per_day = storage.get_max_per_day(user_id)
     context.user_data["single_time_flexible"] = update.callback_query.data == "true"
     importance_map = {
@@ -181,16 +183,23 @@ async def save_single_time(update, context):
         'high': Importance.HIGH
     }
     importance = importance_map[context.user_data["single_time_importance"]]
-    controller = context.bot_data["controller"]
-    controller.create_single_time(
-        user_id=user_id,
-        name=context.user_data["single_time_name"],
-        importance=importance,
-        is_flexible=context.user_data["single_time_flexible"],
-        date=context.user_data["single_time_date"],
-        max_per_day=max_per_day
-    )
-    await update.callback_query.message.reply_text("Готово!")
+    date_str = context.user_data["single_time_date"]
+    try:
+        due_date = parser.parse(date_str, dayfirst=True).date()
+        controller.create_single_time(
+            user_id=user_id,
+            name=context.user_data["single_time_name"],
+            importance=importance,
+            is_flexible=context.user_data["single_time_flexible"],
+            date=due_date,
+            max_per_day=max_per_day
+        )
+        await update.callback_query.message.reply_text(f"Готово! Добавлена задача {context.user_data["single_time_name"]}")
+
+    except (ValueError, OverflowError, parser.ParserError):
+        await update.callback_query.message.reply_text(
+            "Не удалось распознать дату. Правильный формат: ДД.ММ.ГГГГ"
+        )
     return ConversationHandler.END
 #endregion
 
@@ -217,7 +226,7 @@ routine_handler = ConversationHandler(
 )
 
 single_time_handler = ConversationHandler(
-    entry_points=[CallbackQueryHandler(ask_routine_name, pattern="^new_single_time$")],
+    entry_points=[CallbackQueryHandler(ask_single_time_name, pattern="^new_single_time$")],
     states={
         SINGLE_TIME_NAME: [MessageHandler(filters.TEXT, ask_single_time_date)],
         SINGLE_TIME_DATE: [MessageHandler(filters.TEXT, ask_single_time_importance)],
@@ -228,26 +237,22 @@ single_time_handler = ConversationHandler(
     per_message=False
 )
 
-loop = asyncio.new_event_loop()
-
 db_path = os.path.join(os.path.dirname(__file__), "tasks_users.db")
 
-async def main():
-    app = Application.builder().token(TOKEN).build()
-    app.add_handler(registration_handler)
-    app.add_handler(routine_handler)
-    app.add_handler(single_time_handler)
+async def startup(app):
+    loop = asyncio.get_running_loop()
 
-    notifier = Notifier(app)
+    notifier = Notifier(app, loop)
     storage = Storage(db_path)
-    app.bot_data['storage'] = storage
-    scheduler = Scheduler(notify_callback=lambda task: notifier.notify_task(task), storage=storage)
+    scheduler = Scheduler(notifier=notifier, storage=storage)
     rearranger = Rearranger(notify_callback=notifier.notify_overload, week={})
     controller = TaskService(storage=storage, scheduler=scheduler, rearranger=rearranger)
+
+    app.bot_data['storage'] = storage
     app.bot_data['controller'] = controller
 
-    await app.run_polling()
-
-
-asyncio.run(main())
-
+app = Application.builder().token(TOKEN).post_init(startup).build()
+app.add_handler(registration_handler)
+app.add_handler(routine_handler)
+app.add_handler(single_time_handler)
+app.run_polling()

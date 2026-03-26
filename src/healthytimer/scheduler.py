@@ -6,8 +6,8 @@ from healthytimer.models import Task, Routine, TimeUnit
 
 
 class Scheduler:
-    def __init__(self, notify_callback, storage):
-        self._notify_callback = notify_callback
+    def __init__(self, notifier, storage):
+        self.notifier = notifier
         self._storage = storage
         self._tasks = {}  # id -> task
         self._wakeup = threading.Event()
@@ -29,7 +29,7 @@ class Scheduler:
             self._wakeup.wait(timeout=seconds)
 
             if next_task and (next_task.due_date <= datetime.now()):
-                self._notify_callback(next_task)
+                self.notifier.notify_task(next_task)
                 if isinstance(next_task, Routine):
                     next_task.due_date = datetime.now() + timedelta(
                         seconds=next_task.interval_in_seconds()
