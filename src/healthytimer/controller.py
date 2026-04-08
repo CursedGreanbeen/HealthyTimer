@@ -15,7 +15,7 @@ class TaskService:
         for task in self.storage.get_all_tasks(user_id):
             if datetime.now() <= task.due_date <= week_window:
                 week[task.due_date.date()].append(task)
-            if isinstance(task, Routine):
+            if isinstance(task, Routine) and task.unit not in (TimeUnit.MINUTES, TimeUnit.HOURS):
                 next_occurrence = task.due_date + task.unit.calc_interval(task.interval_time)
                 while next_occurrence < datetime.now():
                     next_occurrence += task.unit.calc_interval(task.interval_time)

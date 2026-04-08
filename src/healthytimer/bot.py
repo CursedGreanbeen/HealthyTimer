@@ -225,16 +225,18 @@ async def view_tasks(update, context):
         Importance.HIGH: 'Высокая важность',
     }
 
-    day_info = ''
     for day, tasks in week.items():
-        day_info += f"{day}:\n"
         if tasks:
+            keyboard = []
             for task in tasks:
-                day_info += f"{task.name} - {importance_map[task.importance]}\n"
+                task_info = f"{task.name} - {importance_map[task.importance]}"
+                keyboard.append([InlineKeyboardButton(task_info, callback_data="true")])
+            await update.callback_query.message.reply_text(
+                f"Все дела на {day}:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
         else:
-            day_info += "Нет задач на этот день\n"
-    await query.message.reply_text(day_info)
-# reply_markup=InlineKeyboardMarkup(keyboard)
+            await update.callback_query.message.reply_text(f"Нет задач на {day}")
 #endregion
 
 # CONVERSATION HANDLERS
