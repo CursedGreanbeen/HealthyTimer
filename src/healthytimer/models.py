@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 from enum import Enum
 
 
@@ -11,14 +12,14 @@ class TimeUnit(Enum):
     MONTHS = 4
     YEARS = 5
 
-    def to_seconds(self) -> float:
-        conversions = {
-            TimeUnit.MINUTES: 60,
-            TimeUnit.HOURS:   60 * 60,
-            TimeUnit.DAYS:    60 * 60 * 24,
-            TimeUnit.WEEKS:   60 * 60 * 24 * 7,
-        }
-        return conversions[self]
+    def calc_interval(self, interval):
+        match self:
+            case TimeUnit.MINUTES: return relativedelta(minutes=interval)
+            case TimeUnit.HOURS: return relativedelta(hours=interval)
+            case TimeUnit.DAYS: return relativedelta(days=interval)
+            case TimeUnit.WEEKS: return relativedelta(weeks=interval)
+            case TimeUnit.MONTHS: return relativedelta(months=interval)
+            case TimeUnit.YEARS: return relativedelta(years=interval)
 
 
 class Importance(Enum):
@@ -44,5 +45,5 @@ class Routine(Task):
     unit: TimeUnit = TimeUnit.DAYS
     # is_running = True
 
-    def interval_in_seconds(self) -> float:
-        return self.interval_time * self.unit.to_seconds()
+    # def interval_in_seconds(self) -> float:
+    #     return self.interval_time * self.unit.to_seconds()

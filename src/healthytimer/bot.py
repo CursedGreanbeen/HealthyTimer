@@ -176,7 +176,8 @@ async def ask_single_time_flexible(update, context):
         InlineKeyboardButton("Да", callback_data="true"),
         InlineKeyboardButton("Нет", callback_data="false"),
     ]]
-    await update.callback_query.message.reply_text("Можно ли переносить дату/время выполнения?", reply_markup=InlineKeyboardMarkup(keyboard))
+    await update.callback_query.message.reply_text("Можно ли переносить дату/время выполнения?",
+                                                   reply_markup=InlineKeyboardMarkup(keyboard))
     return SINGLE_TIME_FLEXIBLE
 
 async def save_single_time(update, context):
@@ -233,6 +234,7 @@ async def view_tasks(update, context):
         else:
             day_info += "Нет задач на этот день\n"
     await query.message.reply_text(day_info)
+# reply_markup=InlineKeyboardMarkup(keyboard)
 #endregion
 
 # CONVERSATION HANDLERS

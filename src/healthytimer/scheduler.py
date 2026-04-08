@@ -31,9 +31,7 @@ class Scheduler:
             if next_task and (next_task.due_date <= datetime.now()):
                 self.notifier.notify_task(next_task)
                 if isinstance(next_task, Routine):
-                    next_task.due_date = datetime.now() + timedelta(
-                        seconds=next_task.interval_in_seconds()
-                    )
+                    next_task.due_date = datetime.now() + next_task.unit.calc_interval(next_task.interval_time)
                     self._storage.update_task(next_task)
                 else:
                     self._tasks.pop(next_task.id)

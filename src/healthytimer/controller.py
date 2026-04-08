@@ -1,8 +1,6 @@
 from datetime import time, datetime, timedelta
-from healthytimer.scheduler import Scheduler
-from healthytimer.storage import Storage
 from healthytimer.models import Task, Routine, TimeUnit, Importance
-from healthytimer.rearranger import Rearranger
+import copy
 
 
 class TaskService:
@@ -12,11 +10,20 @@ class TaskService:
         self.rearranger = rearranger
 
     def collect_week(self, user_id):
-        week_window = datetime.now() + timedelta(days=7)
-        week = {(datetime.now() + timedelta(days=i)).date(): [] for i in range(8)}
+        week_window = datetime.now() + timedelta(days=6)
+        week = {(datetime.now() + timedelta(days=i)).date(): [] for i in range(7)}
         for task in self.storage.get_all_tasks(user_id):
             if datetime.now() <= task.due_date <= week_window:
                 week[task.due_date.date()].append(task)
+            if isinstance(task, Routine):
+                next_occurrence = task.due_date + task.unit.calc_interval(task.interval_time)
+                while next_occurrence < datetime.now():
+                    next_occurrence += task.unit.calc_interval(task.interval_time)
+                while datetime.now() <= next_occurrence <= week_window:
+                    occurrence = copy.copy(task)
+                    occurrence.due_date = next_occurrence
+                    week[next_occurrence.date()].append(occurrence)
+                    next_occurrence += task.unit.calc_interval(task.interval_time)
         return week
 
     def create_routine(self, user_id, name, interval_time, unit, importance, is_flexible, max_per_day):
@@ -27,7 +34,7 @@ class TaskService:
             unit=unit,
             importance=importance,
             is_flexible=is_flexible,
-            due_date=datetime.now() + timedelta(seconds=interval_time * unit.to_seconds())
+            due_date=datetime.now() + unit.calc_interval(interval_time)
         )
         routine = self.storage.insert_routine(routine)
         self.rearranger.week = self.collect_week(user_id)
@@ -57,7 +64,7 @@ class TaskService:
         task.unit = unit
         task.importance = importance
         task.is_flexible = is_flexible
-        task.due_date = datetime.now() + timedelta(seconds=task.interval_in_seconds())
+        task.due_date = datetime.now() + task.unit.calc_interval(task.interval_time)
         self.storage.update_task(task)
         self.scheduler.cancel_task(task.id)
         self.scheduler.add_task(task)
