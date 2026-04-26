@@ -259,7 +259,7 @@ async def view_tasks(update, context):
 #endregion
 
 
-(CHOSEN_FIELD, ENTERED_VALUE) = range(2)
+(CHOSEN_FIELD, ENTERED_VALUE, CONFIRM_DELETE) = range(3)
 async def manage_task(update, context):
     await update.callback_query.answer()
     storage = context.bot_data['storage']
@@ -268,25 +268,35 @@ async def manage_task(update, context):
         Importance.MEDIUM: 'Средняя важность',
         Importance.HIGH: 'Высокая важность',
     }
+    unit_map = {
+        TimeUnit.MINUTES: '(минуты)',
+        TimeUnit.HOURS: '(часы)',
+        TimeUnit.DAYS: '(дни)',
+        TimeUnit.WEEKS: '(недели)',
+        TimeUnit.MONTHS: '(месяцы)',
+        TimeUnit.YEARS: '(годы)'
+    }
     task_id = int(update.callback_query.data.split("_")[1])
+    context.user_data["task_id"] = task_id
     task = storage.find_task(task_id)
     importance = importance_map[task.importance]
+    unit = unit_map[task.unit]
     if isinstance(task, Routine):
         keyboard = [
             [InlineKeyboardButton("Изменить", callback_data="edit_routine")],
-            [InlineKeyboardButton("Отменить", callback_data="cancel_routine")],
-            [InlineKeyboardButton("Удалить", callback_data="delete_routine")],
+            # [InlineKeyboardButton("Отменить", callback_data="cancel_routine")],
+            [InlineKeyboardButton("Удалить", callback_data="delete_task")],
         ]
         await update.callback_query.message.reply_text(f"<b>Задача:</b> {task.name}\n\n"
-                                                       f"📅 Интервал: {int(task.interval_time)} {task.unit}\n"
+                                                       f"📅 Интервал: {int(task.interval_time)} {unit}\n"
                                                        f"⭐ {importance}\n"
-                                                       f"🔄 Гибкая: {task.is_flexible}",
+                                                       f"🔄 Можно перенести: {task.is_flexible}",
                                                        parse_mode="HTML",
                                                        reply_markup=InlineKeyboardMarkup(keyboard))
     else:
         keyboard = [
             [InlineKeyboardButton("Изменить", callback_data="edit_single_task")],
-            [InlineKeyboardButton("Удалить", callback_data="delete_single_task")],
+            [InlineKeyboardButton("Удалить", callback_data="delete_task")],
         ]
         await update.callback_query.message.reply_text(f"<b>Задача:</b> {task.name}\n\n"
                                                        f"📅 {task.due_date.date()}\n"
@@ -294,15 +304,14 @@ async def manage_task(update, context):
                                                        f"🔄 Гибкая: {task.is_flexible}",
                                                        parse_mode="HTML",
                                                        reply_markup=InlineKeyboardMarkup(keyboard))
+    return CHOSEN_FIELD
 
 async def edit_routine(update, context):
     await update.callback_query.answer()
     storage = context.bot_data['storage']
-    task_id = int(update.callback_query.data.split("_")[1])
-    task = storage.find_task(task_id)
-
     context.user_data["mode"] = "edit"
-    context.user_data["task_id"] = task_id
+    task_id = context.user_data["task_id"]
+    task = storage.find_task(task_id)
     keyboard = [
         [InlineKeyboardButton("Название", callback_data="routine_name")],
         [InlineKeyboardButton("Интервал", callback_data="routine_interval")],
@@ -317,11 +326,13 @@ async def edit_routine(update, context):
                                                    f"🔄 Гибкая: {task.is_flexible}",
                                                    parse_mode="HTML",
                                                    reply_markup=InlineKeyboardMarkup(keyboard))
+    return ENTERED_VALUE
 
 async def edit_single_time(update, context):
     await update.callback_query.answer()
     storage = context.bot_data['storage']
-    task_id = int(update.callback_query.data.split("_")[1])
+    context.user_data["mode"] = "edit"
+    task_id = context.user_data["task_id"]
     task = storage.find_task(task_id)
     keyboard = [
         [InlineKeyboardButton("Название", callback_data="single_time_name")],
@@ -336,19 +347,38 @@ async def edit_single_time(update, context):
                                                    f"🔄 Гибкая: {task.is_flexible}",
                                                    parse_mode="HTML",
                                                    reply_markup=InlineKeyboardMarkup(keyboard))
+    return ENTERED_VALUE
 
 async def delete_task(update, context):
+    print('check')
     await update.callback_query.answer()
     storage = context.bot_data['storage']
-    task_id = int(update.callback_query.data.split("_")[1])
+    task_id = context.user_data["task_id"]
     task = storage.find_task(task_id)
+    context.user_data["mode"] = "delete"
+
     keyboard = [
         [InlineKeyboardButton("Да", callback_data="true")],
         [InlineKeyboardButton("Нет", callback_data="false")],
     ]
     await update.callback_query.message.reply_text(f"Удаляем {task.name}?",
                                                    reply_markup=InlineKeyboardMarkup(keyboard))
+    return CONFIRM_DELETE
 
+async def confirm_delete(update, context):
+    await update.callback_query.answer()
+    keyboard = [[InlineKeyboardButton("Вернуться к плану", callback_data="view_tasks")]]
+    storage = context.bot_data['storage']
+    task_id = context.user_data["task_id"]
+    task = storage.find_task(task_id)
+
+    if update.callback_query.data == "true":
+        storage.delete_task(task)
+        await update.callback_query.message.reply_text(f"Задача {task.name} удалена",
+                                                   reply_markup=InlineKeyboardMarkup(keyboard))
+    else:
+        await update.callback_query.message.reply_text(f"Удаление {task.name} отменено", reply_markup=InlineKeyboardMarkup(keyboard))
+    return ConversationHandler.END
 
 # CONVERSATION HANDLERS
 #region
@@ -393,8 +423,19 @@ view_tasks_handler = CallbackQueryHandler(view_tasks, pattern="^view_tasks$")
 edit_tasks_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(manage_task, pattern=r"^task_\d+$")],
     states={
-        CHOSEN_FIELD: [CallbackQueryHandler(edit_routine, pattern=r"^task_\d+$")],
-        # ENTERED_VALUE: [MessageHandler(filters.TEXT, _)],
+        CHOSEN_FIELD: [
+            CallbackQueryHandler(edit_routine, pattern=r"^edit_routine$"),
+            CallbackQueryHandler(edit_single_time, pattern=r"^edit_single_time$"),
+            CallbackQueryHandler(delete_task, pattern="^delete_task$"),
+        ],
+        ENTERED_VALUE: [
+
+        ],
+        CONFIRM_DELETE: [
+            CallbackQueryHandler(confirm_delete, pattern="^true$"),
+            CallbackQueryHandler(confirm_delete, pattern="^false$"),
+        ],
+
     },
     fallbacks=[],
     per_message=False
